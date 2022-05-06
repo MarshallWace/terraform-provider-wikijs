@@ -39,8 +39,10 @@ func dataSourceSiteRead(ctx context.Context, d *schema.ResourceData, meta interf
 	var diags diag.Diagnostics
 	c := meta.(*Client)
 
-	data := c.GetSite()
-
+	data, err := c.GetSite()
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	if err := d.Set("host", data.Site.Config.Host); err != nil {
 		return diag.FromErr(err)
 	}
