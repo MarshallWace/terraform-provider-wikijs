@@ -43,7 +43,7 @@ func (c *Client) GetSite() *schema.SiteData {
 
 func (c *Client) GetGroup(id string) *schema.QueryGroupData {
 	var data schema.QueryGroupData
-	idInt, err := strconv.Atoi(id)
+	idInt, err := strconv.ParseInt(id, 10, 32)
 	if err != nil {
 		panic(err)
 	}
@@ -82,7 +82,7 @@ func (c *Client) CreateGroup(name string) *schema.CreateGroupData {
 
 func (c *Client) DeleteGroup(id string) (*schema.DeleteGroupData, error) {
 	var data schema.DeleteGroupData
-	idInt, err := strconv.Atoi(id)
+	idInt, err := strconv.ParseInt(id, 10, 32)
 	if err != nil {
 		panic(err)
 	}
@@ -101,7 +101,7 @@ func (c *Client) DeleteGroup(id string) (*schema.DeleteGroupData, error) {
 //type PageRuleInput []map[string]interface{}
 
 func (c *Client) UpdateGroup(id string, name string, redirectOnLogin string, permissions []string, pageRules []schema.PageRuleInput) *schema.UpdateGroupData {
-	idInt, err := strconv.Atoi(id)
+	idInt, err := strconv.ParseInt(id, 10, 32)
 
 	permissionsGqlc := make([]gqlc.String, len(permissions))
 	for i, arg := range permissions {
