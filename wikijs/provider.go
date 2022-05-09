@@ -1,11 +1,9 @@
 package wikijs
 
 import (
-	"context"
-	"os"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+    "context"
+    "github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+    "github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func init() {
@@ -27,6 +25,19 @@ func init() {
 func New(_ string) func() *schema.Provider {
 	return func() *schema.Provider {
 		p := &schema.Provider{
+			Schema: map[string]*schema.Schema{
+				"host": &schema.Schema{
+					Type:        schema.TypeString,
+					Optional:    true,
+					DefaultFunc: schema.EnvDefaultFunc("WIKIJS_HOST", nil),
+				},
+				"token": &schema.Schema{
+					Type:        schema.TypeString,
+					Optional:    true,
+					Sensitive:   true,
+					DefaultFunc: schema.EnvDefaultFunc("WIKIJS_TOKEN", nil),
+				},
+			},
 			DataSourcesMap: map[string]*schema.Resource{
 				"wikijs_site_data_source": dataSourceSite(),
 			},
@@ -41,10 +52,25 @@ func New(_ string) func() *schema.Provider {
 	}
 }
 
-func configure() func(context.Context, *schema.ResourceData) (interface{}, diag.Diagnostics) {
-	return func(context.Context, *schema.ResourceData) (interface{}, diag.Diagnostics) {
-		host := os.Getenv("WIKIJS_HOST")
-		token := os.Getenv("WIKIJS_TOKEN")
+func configure() func(_ context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+	return func(_ context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+		var diags diag.Diagnostics
+
+		host := d.Get("host").(string)
+		token := d.Get("token").(string)
+		if host == "" {
+			diags = append(diags, diag.Diagnostic{Severity: diag.Error,
+				Summary: "Wikijs HOST not declared.",
+				Detail:  "Set the value as an env var WIKIJS_HOST or as `host` in the provider block."})
+			return nil, diags
+		}
+
+		if token == "" {
+			diags = append(diags, diag.Diagnostic{Severity: diag.Error,
+				Summary: "Wikijs API TOKEN not declared.",
+				Detail:  "Set the value as an env var WIKIJS_TOKEN or as `token` in the provider block."})
+			return nil, diags
+		}
 
 		client, err := NewClient(host, token)
 		if err != nil {

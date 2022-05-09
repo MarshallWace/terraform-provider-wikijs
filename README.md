@@ -39,7 +39,7 @@ Then commit the changes to `go.mod` and `go.sum`.
 1. Set WIKIJS_HOST and WIKIJS_TOKEN in env
 2. In root directory, `make testacc` to run acceptance tests in all \*/\*_test.go files. 
 3. To try out on actual terraform:
-   1. In root directory, `make` to build binary and move it to correct location
+   1. In root directory, run `make`, which builds the binary and moves it to the path that terraform looks in
    2. in examples/test, run `terraform init && terraform plan` to view output. Change the `test.tf` file accordingly.
 
 ### Notes on defining graphql schema
