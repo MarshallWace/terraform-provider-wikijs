@@ -5,11 +5,6 @@ import (
 	"github.com/hasura/go-graphql-client"
 )
 
-type KeyValuePair struct {
-	Key   graphql.String `json:"key"`
-	Value graphql.String `json:"value"`
-}
-
 type ResponseStatus struct {
 	Succeeded graphql.Boolean
 	ErrorCode graphql.Int
