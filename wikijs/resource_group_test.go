@@ -19,6 +19,10 @@ func TestAccResourceGroup(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestMatchResourceAttr(
 						"wikijs_group_resource.foo", "name", regexp.MustCompile("test-group")),
+					resource.TestMatchResourceAttr(
+						"wikijs_group_resource.foo", "page_rules.#", regexp.MustCompile("1")),
+					resource.TestMatchResourceAttr(
+						"wikijs_group_resource.foo", "page_rules.0.id", regexp.MustCompile("page_rules_dummy_id")),
 				),
 			},
 			{
@@ -26,6 +30,10 @@ func TestAccResourceGroup(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestMatchResourceAttr(
 						"wikijs_group_resource.foo", "name", regexp.MustCompile("test-group-updated")),
+					resource.TestMatchResourceAttr(
+						"wikijs_group_resource.foo", "page_rules.#", regexp.MustCompile("2")),
+					resource.TestMatchResourceAttr(
+						"wikijs_group_resource.foo", "page_rules.1.id", regexp.MustCompile("page_rules_dummy_id_2")),
 				),
 			},
 		},
@@ -36,7 +44,7 @@ const testAccResourceGroup = `
 resource "wikijs_group_resource" "foo" {
     name = "test-group"
     permissions = ["read:pages", "write:pages"]
-    redirect_on_login = ""
+    redirect_on_login = "/"
     page_rules {
         id = "page_rules_dummy_id"
         deny = false
@@ -52,9 +60,17 @@ const testAccResourceGroupUpdated = `
 resource "wikijs_group_resource" "foo" {
     name = "test-group-updated"
     permissions = ["read:pages", "write:pages"]
-    redirect_on_login = ""
+    redirect_on_login = "/"
     page_rules {
         id = "page_rules_dummy_id"
+        deny = false
+        match = "START"
+        roles = ["read:pages","write:pages"]
+        path = "/test"
+        locales = []
+    }
+    page_rules {
+        id = "page_rules_dummy_id_2"
         deny = false
         match = "START"
         roles = ["read:pages","write:pages"]

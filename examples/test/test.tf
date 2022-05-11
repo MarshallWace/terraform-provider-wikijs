@@ -14,5 +14,5 @@ terraform {
 data "wikijs_site_data_source" "all" {}
 
 output "site_info" {
-    value = data.wikijs_site_data_source.all
+  value = data.wikijs_site_data_source.all
 }

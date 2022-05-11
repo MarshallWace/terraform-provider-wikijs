@@ -11,6 +11,7 @@ import (
 	"golang.org/x/exp/slices"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -52,6 +53,16 @@ func resourceGroup() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
+			},
+			"created_at": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "createdAt",
+			},
+			"updated_at": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "updatedAt",
 			},
 			"page_rules": {
 				Type:     schema.TypeList,
@@ -122,6 +133,32 @@ func resourceGroupRead(ctx context.Context, d *schema.ResourceData, meta interfa
 	if err := d.Set("is_system", data.Groups.Single.IsSystem); err != nil {
 		return diag.FromErr(err)
 	}
+	if err := d.Set("redirect_on_login", data.Groups.Single.RedirectOnLogin); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := d.Set("permissions", data.Groups.Single.Permissions); err != nil {
+		return diag.FromErr(err)
+	}
+	flattenedPageRules := make([]interface{}, len(data.Groups.Single.PageRules))
+	for i, pr := range data.Groups.Single.PageRules {
+		oi := make(map[string]interface{})
+		oi["id"] = string(pr.Id)
+		oi["deny"] = bool(pr.Deny)
+		oi["match"] = string(pr.Match)
+		oi["roles"] = gqlcStringArrayToStringArray(pr.Roles)
+		oi["path"] = string(pr.Path)
+		oi["locales"] = gqlcStringArrayToStringArray(pr.Locales)
+		flattenedPageRules[i] = oi
+	}
+	if err := d.Set("page_rules", flattenedPageRules); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := d.Set("created_at", data.Groups.Single.CreatedAt); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := d.Set("updated_at", data.Groups.Single.UpdatedAt); err != nil {
+		return diag.FromErr(err)
+	}
 
 	return diags
 }
@@ -160,6 +197,9 @@ func resourceGroupUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 	id := d.Id()
 	name := d.Get("name").(string)
 	redirectOnLogin := d.Get("redirect_on_login").(string)
+	if !strings.HasPrefix(redirectOnLogin, "/") {
+		return diag.FromErr(fmt.Errorf("redirectOnLogin must start with /"))
+	}
 
 	_permissions := d.Get("permissions").(*schema.Set).List()
 	permissions := make([]string, len(_permissions))

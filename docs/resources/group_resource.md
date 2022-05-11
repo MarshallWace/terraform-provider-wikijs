@@ -28,8 +28,10 @@ Sample resource in the Terraform provider group.
 
 ### Read-Only
 
+- `created_at` (String) createdAt
 - `id` (String) id
 - `is_system` (Boolean) isSystem
+- `updated_at` (String) updatedAt
 
 <a id="nestedblock--page_rules"></a>
 ### Nested Schema for `page_rules`

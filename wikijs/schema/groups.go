@@ -5,12 +5,18 @@ import (
 )
 
 type Group struct {
-	Id       gqlc.Int
-	Name     gqlc.String
-	IsSystem gqlc.Boolean
+	Id              gqlc.Int
+	Name            gqlc.String
+	IsSystem        gqlc.Boolean
+	RedirectOnLogin gqlc.String
+	Permissions     []gqlc.String
+	PageRules       []PageRule
+	// Users []User not implemented for now as no need in use case
+	CreatedAt gqlc.String
+	UpdatedAt gqlc.String
 }
 
-type PageRuleInput struct {
+type PageRule struct {
 	Id      gqlc.String   `json:"id"`
 	Deny    gqlc.Boolean  `json:"deny"`
 	Match   gqlc.String   `json:"match"` // this is actually an enum on wikijs graphql
@@ -19,13 +25,11 @@ type PageRuleInput struct {
 	Locales []gqlc.String `json:"locales"`
 }
 
+type PageRuleInput PageRule
+
 type QueryGroupData struct {
 	Groups struct {
-		Single struct {
-			Id       gqlc.Int
-			Name     gqlc.String
-			IsSystem gqlc.Boolean
-		} `graphql:"single(id: $id)"`
+		Single Group `graphql:"single(id: $id)"`
 	}
 }
 
