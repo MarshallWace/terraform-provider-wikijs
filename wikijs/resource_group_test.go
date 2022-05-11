@@ -50,7 +50,7 @@ resource "wikijs_group_resource" "foo" {
         deny = false
         match = "START"
         roles = ["read:pages","write:pages"]
-        path = "/test"
+        path = "test"
         locales = []
     }
 }
@@ -66,7 +66,7 @@ resource "wikijs_group_resource" "foo" {
         deny = false
         match = "START"
         roles = ["read:pages","write:pages"]
-        path = "/test"
+        path = "test"
         locales = []
     }
     page_rules {
@@ -74,7 +74,7 @@ resource "wikijs_group_resource" "foo" {
         deny = false
         match = "START"
         roles = ["read:pages","write:pages"]
-        path = "/test"
+        path = "test"
         locales = []
     }
 }

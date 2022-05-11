@@ -210,14 +210,18 @@ func resourceGroupUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 	_pageRules := d.Get("page_rules").([]interface{})
 	pageRules := make([]wjSchema.PageRuleInput, len(_pageRules))
 	for i, arg := range _pageRules {
-		var temp wjSchema.PageRuleInput
-		err := mapstructure.Decode(arg, &temp)
+		var p wjSchema.PageRuleInput
+		err := mapstructure.Decode(arg, &p)
 		if err != nil {
 			panic(err)
 		}
-		pageRules[i] = temp
+		if strings.HasPrefix(string(p.Path), "/") {
+			return diag.FromErr(fmt.Errorf("page_rules.path \"%s\" must not start with /", p.Path))
+		}
+		pageRules[i] = p
 	}
 
+	// Validate all roles are in global permissions
 	for _, rule := range pageRules {
 		roles := rule.Roles
 		for _, role := range roles {
