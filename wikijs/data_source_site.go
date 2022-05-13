@@ -10,20 +10,18 @@ import (
 
 func dataSourceSite() *schema.Resource {
 	return &schema.Resource{
-		// This description is used by the documentation generator and the language server.
-		Description: "Datasource for SiteQuery",
+		Description: "Get Site data from the Wiki.js graphql API. This is currently incomplete and does not contain" +
+			"all the fields available from the site endpoint.",
 
 		ReadContext: dataSourceSiteRead,
 
 		Schema: map[string]*schema.Schema{
 			"host": {
-				// This description is used by the documentation generator and the language server.
 				Description: "Wikijs host",
 				Type:        schema.TypeString,
 				Computed:    true,
 			},
 			"title": {
-				// This description is used by the documentation generator and the language server.
 				Description: "Wikijs title",
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -33,9 +31,6 @@ func dataSourceSite() *schema.Resource {
 }
 
 func dataSourceSiteRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
 	var diags diag.Diagnostics
 	c := meta.(*Client)
 

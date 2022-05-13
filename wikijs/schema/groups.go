@@ -19,7 +19,7 @@ type Group struct {
 type PageRule struct {
 	Id      gqlc.String   `json:"id"`
 	Deny    gqlc.Boolean  `json:"deny"`
-	Match   gqlc.String   `json:"match"` // this is actually an enum on wikijs graphql
+	Match   gqlc.String   `json:"match"`
 	Roles   []gqlc.String `json:"roles"`
 	Path    gqlc.String   `json:"path"`
 	Locales []gqlc.String `json:"locales"`

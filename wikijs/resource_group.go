@@ -9,7 +9,6 @@ import (
 	wjSchema "github.com/hashicorp/terraform-provider-wikijs/wikijs/schema"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/exp/slices"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -17,8 +16,7 @@ import (
 
 func resourceGroup() *schema.Resource {
 	return &schema.Resource{
-		// This description is used by the documentation generator and the language server.
-		Description: "Sample resource in the Terraform provider group.",
+		Description: "Updates Wiki.js Groups via it's graphql API. ",
 
 		CreateContext: resourceGroupCreate,
 		ReadContext:   resourceGroupRead,
@@ -173,7 +171,6 @@ func resourceGroupCreate(ctx context.Context, d *schema.ResourceData, meta inter
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	log.Println("resourceGroupCreate result: ", data.Groups.Create.ResponseResult.String())
 
 	d.SetId(strconv.Itoa(int(data.Groups.Create.Group.Id)))
 
@@ -192,7 +189,6 @@ func resourceGroupCreate(ctx context.Context, d *schema.ResourceData, meta inter
 }
 
 func resourceGroupUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
 	c := meta.(*Client)
 	id := d.Id()
 	name := d.Get("name").(string)
@@ -201,12 +197,42 @@ func resourceGroupUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(fmt.Errorf("redirectOnLogin must start with /"))
 	}
 
-	_permissions := d.Get("permissions").(*schema.Set).List()
-	permissions := make([]string, len(_permissions))
-	for i, arg := range _permissions {
-		permissions[i] = arg.(string)
+	globalPermissions := getGlobalPermissions(d)
+
+	pageRules, diags := getPageRules(d)
+	if diags != nil {
+		return diags
 	}
 
+	validationError := validatePageRules(pageRules, globalPermissions)
+	if validationError != nil {
+		return validationError
+	}
+
+	_, err := c.UpdateGroup(id, name, redirectOnLogin, globalPermissions, pageRules)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if err := d.Set("last_updated", time.Now().Format(time.RFC850)); err != nil {
+		return diag.FromErr(err)
+	}
+
+	tflog.Trace(ctx, fmt.Sprintf("Updated resource name %s with its values", name))
+
+	return resourceGroupRead(ctx, d, meta)
+}
+
+func getGlobalPermissions(d *schema.ResourceData) []string {
+	_globalPermissions := d.Get("permissions").(*schema.Set).List()
+	globalPermissions := make([]string, len(_globalPermissions))
+	for i, arg := range _globalPermissions {
+		globalPermissions[i] = arg.(string)
+	}
+	return globalPermissions
+}
+
+func getPageRules(d *schema.ResourceData) ([]wjSchema.PageRuleInput, diag.Diagnostics) {
+	var diags diag.Diagnostics
 	_pageRules := d.Get("page_rules").([]interface{})
 	pageRules := make([]wjSchema.PageRuleInput, len(_pageRules))
 	for i, arg := range _pageRules {
@@ -216,17 +242,27 @@ func resourceGroupUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 			panic(err)
 		}
 		if strings.HasPrefix(string(p.Path), "/") {
-			return diag.FromErr(fmt.Errorf("page_rules.path \"%s\" must not start with /", p.Path))
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Error,
+				Summary:  fmt.Sprintf("page_rules.path \"%s\" must not start with /", p.Path),
+				Detail:   fmt.Sprintf("Remove the / from the start of the page_rule path. This is added automatically by wikijs."),
+			})
 		}
 		pageRules[i] = p
 	}
+	if len(diags) > 0 {
+		return nil, diags
+	}
+	return pageRules, nil
+}
 
-	// Validate all roles are in global permissions
+func validatePageRules(pageRules []wjSchema.PageRuleInput, globalPermissions []string) diag.Diagnostics {
+	var diags diag.Diagnostics
 	for _, rule := range pageRules {
 		roles := rule.Roles
 		for _, role := range roles {
-			if !slices.Contains(permissions, string(role)) {
-				return append(diags, diag.Diagnostic{
+			if !slices.Contains(globalPermissions, string(role)) {
+				diags = append(diags, diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  fmt.Sprintf("Tried to set PageRule role for unallowed global permission '%s' in the pagerule block of id: %s", role, rule.Id),
 					Detail: fmt.Sprintf("In order to set a role for a page rule, that role must first be enabled under global permissions." +
@@ -235,19 +271,11 @@ func resourceGroupUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 			}
 		}
 	}
-
-	data, err := c.UpdateGroup(id, name, redirectOnLogin, permissions, pageRules)
-	if err != nil {
-		return diag.FromErr(err)
+	if len(diags) > 0 {
+		return diags
+	} else {
+		return nil
 	}
-	if err := d.Set("last_updated", time.Now().Format(time.RFC850)); err != nil {
-		return diag.FromErr(err)
-	}
-
-	log.Println("resourceGroupUpdate result: ", data.Groups.Update.String())
-	tflog.Trace(ctx, fmt.Sprintf("Updated resource name %s with its values", name))
-
-	return resourceGroupRead(ctx, d, meta)
 }
 
 func resourceGroupDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -255,12 +283,11 @@ func resourceGroupDelete(ctx context.Context, d *schema.ResourceData, meta inter
 	c := meta.(*Client)
 	id := d.Id()
 	name := d.Get("name").(string)
-	data, err := c.DeleteGroup(id)
+	_, err := c.DeleteGroup(id)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")
-	log.Println("resourceGroupDelete result: ", data.Groups.Delete.String())
 	tflog.Trace(ctx, fmt.Sprintf("Deleted resource name %s", name))
 
 	return diags

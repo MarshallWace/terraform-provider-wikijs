@@ -9,3 +9,11 @@ func gqlcStringArrayToStringArray(in []gqlc.String) []string {
 	}
 	return o
 }
+
+func stringArrayToGqlcStringArray(in []string) []gqlc.String {
+	o := make([]gqlc.String, len(in))
+	for i, r := range in {
+		o[i] = gqlc.String(r)
+	}
+	return o
+}

@@ -100,17 +100,11 @@ func (c *Client) UpdateGroup(id string, name string, redirectOnLogin string, per
 		panic(err)
 	}
 
-	// Convert []string to []gqlc.String
-	permissionsGqlc := make([]gqlc.String, len(permissions))
-	for i, arg := range permissions {
-		permissionsGqlc[i] = gqlc.String(arg)
-	}
-
 	variables := map[string]interface{}{
 		"id":              gqlc.Int(idInt),
 		"name":            gqlc.String(name),
 		"redirectOnLogin": gqlc.String(redirectOnLogin),
-		"permissions":     permissionsGqlc,
+		"permissions":     stringArrayToGqlcStringArray(permissions),
 		"pageRules":       pageRules,
 	}
 

@@ -3,12 +3,12 @@
 page_title: "wikijs_site_data_source Data Source - terraform-provider-wikijs"
 subcategory: ""
 description: |-
-  Datasource for SiteQuery
+  Get Site data from the Wiki.js graphql API. This is currently incomplete and does not containall the fields available from the site endpoint.
 ---
 
 # wikijs_site_data_source (Data Source)
 
-Datasource for SiteQuery
+Get Site data from the Wiki.js graphql API. This is currently incomplete and does not containall the fields available from the site endpoint.
 
 
 

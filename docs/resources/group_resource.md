@@ -3,12 +3,12 @@
 page_title: "wikijs_group_resource Resource - terraform-provider-wikijs"
 subcategory: ""
 description: |-
-  Sample resource in the Terraform provider group.
+  Updates Wiki.js Groups via it's graphql API.
 ---
 
 # wikijs_group_resource (Resource)
 
-Sample resource in the Terraform provider group.
+Updates Wiki.js Groups via it's graphql API.
 
 
 
