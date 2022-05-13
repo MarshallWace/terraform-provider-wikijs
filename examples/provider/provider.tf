@@ -5,7 +5,7 @@ provider "wikijs" {
 terraform {
   required_providers {
     wikijs = {
-      source  = "local/mwam/wikijs"
+      source  = "wikijs"
       version = "0.1"
     }
   }
