@@ -6,8 +6,8 @@ provider "wikijs" {
 terraform {
   required_providers {
     wikijs = {
-      source  = "wikijs"
-      version = "0.1"
+      source  = "MarshallWace/wikijs"
+      version = "0.0.1"
     }
   }
 }
