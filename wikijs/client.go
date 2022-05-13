@@ -22,13 +22,14 @@ type Client struct {
 // NewClient creates a new http client with a connection to the provided wikijs endpoint.
 // The client is tested for authentication success on creation.
 func NewClient(host, token string) (*Client, error) {
+	hostGql := host + "/graphql"
 	ctx := context.Background()
 	oauthClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: token,
 		TokenType:   "Bearer",
 	}))
 	httpClient := http.Client{Transport: oauthClient.Transport, Timeout: 10 * time.Second}
-	graphqlClient := gqlc.NewClient(host, &httpClient)
+	graphqlClient := gqlc.NewClient(hostGql, &httpClient)
 	c := Client{Token: token,
 		Host:       host,
 		HTTPClient: &httpClient,
