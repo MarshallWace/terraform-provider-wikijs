@@ -19,6 +19,8 @@ type Client struct {
 	gqlClient  *gqlc.Client
 }
 
+// NewClient creates a new http client with a connection to the provided wikijs endpoint.
+// The client is tested for authentication success on creation.
 func NewClient(host, token string) (*Client, error) {
 	ctx := context.Background()
 	oauthClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
@@ -32,7 +34,7 @@ func NewClient(host, token string) (*Client, error) {
 		HTTPClient: &httpClient,
 		gqlClient:  graphqlClient}
 
-	// check connection with a simple query
+	// Check connection with a simple query
 	_, err := c.GetSite()
 	if err != nil {
 		if strings.Contains(err.Error(), "Message: Forbidden") {
@@ -44,12 +46,14 @@ func NewClient(host, token string) (*Client, error) {
 	return &c, nil
 }
 
+// query POSTS a graphql query through the hasura go-graphql-client
 func query[T any](c *Client, variables map[string]interface{}) (*T, error) {
 	var data T
 	err := c.gqlClient.Query(context.Background(), &data, variables)
 	return &data, err
 }
 
+// mutate POSTS a graphql mutation through the hasura go-graphql-client
 func mutate[T any](c *Client, variables map[string]interface{}) (*T, error) {
 	var data T
 	err := c.gqlClient.Mutate(context.Background(), &data, variables)
