@@ -1,6 +1,7 @@
 package wikijs
 
 import (
+	"os"
 	"regexp"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 )
 
 func TestAccDataSourceSite(t *testing.T) {
+	host := os.Getenv("WIKIJS_HOST")
 	resource.UnitTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: providerFactories,
@@ -16,7 +18,7 @@ func TestAccDataSourceSite(t *testing.T) {
 				Config: testAccDataSourceSite,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestMatchResourceAttr(
-						"data.wikijs_site_data_source.test", "host", regexp.MustCompile("https://t-wiki")),
+						"data.wikijs_site_data_source.test", "host", regexp.MustCompile(host)),
 				),
 			},
 		},

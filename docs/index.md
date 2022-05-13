@@ -14,7 +14,7 @@ description: |-
 
 ```terraform
 provider "wikijs" {
-  #    host = wikjs_host_url  # Oor pass as env var WIKIJS_HOST
+  host = "https://your-wiki-url.com" # Or pass as env var WIKIJS_HOST
   #    token = wikijs_api_token # or pass as env var WIKIJS_TOKEN
 }
 
