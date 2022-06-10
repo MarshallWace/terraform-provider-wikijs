@@ -162,7 +162,7 @@ github.com/hashicorp/terraform-svchost
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 ## explicit
 github.com/hashicorp/yamux
-# github.com/hasura/go-graphql-client v0.7.0
+# github.com/hasura/go-graphql-client v0.7.1
 ## explicit; go 1.14
 github.com/hasura/go-graphql-client
 github.com/hasura/go-graphql-client/ident
