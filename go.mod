@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/terraform-plugin-docs v0.8.1
 	github.com/hashicorp/terraform-plugin-log v0.4.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.16.0
-	github.com/hasura/go-graphql-client v0.7.0
+	github.com/hasura/go-graphql-client v0.7.2
 	github.com/mitchellh/mapstructure v1.5.0
 	golang.org/x/exp v0.0.0-20220426173459-3bcf042a4bf5
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
