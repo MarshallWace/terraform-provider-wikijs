@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 2022 Marshall Wace <opensource@mwam.com>
+//
+// SPDX-License-Identifier: GPL3
+
 package wikijs
 
 import (
