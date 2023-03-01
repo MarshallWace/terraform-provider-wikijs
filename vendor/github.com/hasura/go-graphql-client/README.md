@@ -1,7 +1,7 @@
 go-graphql-client
 =======
 
-[![Build Status](https://travis-ci.org/hasura/go-graphql-client.svg?branch=master)](https://travis-ci.org/hasura/go-graphql-client.svg?branch=master) [![GoDoc](https://godoc.org/github.com/hasura/go-graphql-client?status.svg)](https://pkg.go.dev/github.com/hasura/go-graphql-client)
+[![Unit tests](https://github.com/hasura/go-graphql-client/actions/workflows/test.yml/badge.svg)](https://github.com/hasura/go-graphql-client/actions/workflows/test.yml)
 
 **Preface:** This is a fork of `https://github.com/shurcooL/graphql` with extended features (subscription client, named operation)
 
@@ -12,6 +12,8 @@ Package `graphql` provides a GraphQL client implementation.
 For more information, see package [`github.com/shurcooL/githubv4`](https://github.com/shurcooL/githubv4), which is a specialized version targeting GitHub GraphQL API v4. That package is driving the feature development.
 
 **Status:** In active early research and development. The API will change when opportunities for improvement are discovered; it is not yet frozen.
+
+**Note**: Before v0.8.0, `QueryRaw`, `MutateRaw` and `Subscribe` methods return `*json.RawMessage`. This output type is redundant to be decoded. From v0.8.0, the output type is changed to `[]byte`.
 
 - [go-graphql-client](#go-graphql-client)
 	- [Installation](#installation)
@@ -25,16 +27,19 @@ For more information, see package [`github.com/shurcooL/githubv4`](https://githu
 		- [Specify GraphQL type name](#specify-graphql-type-name)
 		- [Mutations](#mutations)
 			- [Mutations Without Fields](#mutations-without-fields)
-		- [Execute](#execute)
 		- [Subscription](#subscription)
 			- [Usage](#usage-1)
 			- [Subscribe](#subscribe)
+			- [Stop the subscription](#stop-the-subscription)
 			- [Authentication](#authentication-1)
 			- [Options](#options)
+			- [Subscription Protocols](#subscription-protocols)
+			- [Handle connection error](#handle-connection-error)
 			- [Events](#events)
 			- [Custom HTTP Client](#custom-http-client)
 			- [Custom WebSocket client](#custom-websocket-client)
 		- [Options](#options-1)
+		- [Execute pre-built query](#execute-pre-built-query)
 		- [With operation name (deprecated)](#with-operation-name-deprecated)
 		- [Raw bytes response](#raw-bytes-response)
 		- [Multiple mutations with ordered map](#multiple-mutations-with-ordered-map)
@@ -45,7 +50,7 @@ For more information, see package [`github.com/shurcooL/githubv4`](https://githu
   
 ## Installation
 
-`go-graphql-client` requires Go version 1.13 or later.
+`go-graphql-client` requires Go version 1.16 or later. For older Go versions, downgrade the library version below v0.7.1.
 
 ```bash
 go get -u github.com/hasura/go-graphql-client
@@ -79,7 +84,7 @@ func main() {
 
 ### Simple Query
 
-To make a GraphQL query, you need to define a corresponding Go type.
+To make a GraphQL query, you need to define a corresponding Go type. Variable names must be upper case, see [here](https://github.com/hasura/go-graphql-client/blob/master/README.md#specify-graphql-type-name)
 
 For example, to make the following GraphQL query:
 
@@ -96,7 +101,7 @@ You can define this variable:
 ```Go
 var query struct {
 	Me struct {
-		Name graphql.String
+		Name string
 	}
 }
 ```
@@ -133,8 +138,8 @@ You can define this variable:
 ```Go
 var q struct {
 	Human struct {
-		Name   graphql.String
-		Height graphql.Float `graphql:"height(unit: METER)"`
+		Name   string
+		Height float64 `graphql:"height(unit: METER)"`
 	} `graphql:"human(id: \"1000\")"`
 }
 ```
@@ -159,8 +164,8 @@ However, that'll only work if the arguments are constant and known in advance. O
 ```Go
 var q struct {
 	Human struct {
-		Name   graphql.String
-		Height graphql.Float `graphql:"height(unit: $unit)"`
+		Name   string
+		Height float64 `graphql:"height(unit: $unit)"`
 	} `graphql:"human(id: $id)"`
 }
 ```
@@ -182,6 +187,33 @@ if err != nil {
 	// Handle error.
 }
 ```
+
+Variables get encoded as normal json. So if you supply a struct for a variable and want to rename fields, you can do this like that:
+```Go
+type Dimensions struct {
+	Width int `json:"ship_width"`,
+	Height int `json:"ship_height"`
+}
+
+var myDimensions = Dimensions{
+	Width : 10,
+	Height : 6,
+}
+
+var mutation struct {
+  CreateDimensions struct {
+     ID string `graphql:"id"`
+  } `graphql:"create_dimensions(ship_dimensions: $ship_dimensions)"`
+} 
+
+variables := map[string]interface{}{
+	"ship_dimensions":  myDimensions,
+}
+
+err := client.Mutate(context.TODO(), &mutation, variables)
+
+```
+which will set `ship_dimensions` to an object with the properties `ship_width` and `ship_height`.
 
 ### Custom scalar tag
 
@@ -261,12 +293,12 @@ You can define this variable:
 ```Go
 var q struct {
 	Hero struct {
-		Name  graphql.String
+		Name  string
 		Droid struct {
-			PrimaryFunction graphql.String
+			PrimaryFunction string
 		} `graphql:"... on Droid"`
 		Human struct {
-			Height graphql.Float
+			Height float64
 		} `graphql:"... on Human"`
 	} `graphql:"hero(episode: \"JEDI\")"`
 }
@@ -277,16 +309,16 @@ Alternatively, you can define the struct types corresponding to inline fragments
 ```Go
 type (
 	DroidFragment struct {
-		PrimaryFunction graphql.String
+		PrimaryFunction string
 	}
 	HumanFragment struct {
-		Height graphql.Float
+		Height float64
 	}
 )
 
 var q struct {
 	Hero struct {
-		Name          graphql.String
+		Name          string
 		DroidFragment `graphql:"... on Droid"`
 		HumanFragment `graphql:"... on Human"`
 	} `graphql:"hero(episode: \"JEDI\")"`
@@ -316,8 +348,8 @@ The GraphQL type is automatically inferred from Go type by reflection. However, 
 
 ```go
 type UserReviewInput struct {
-	Review String
-	UserID String
+	Review string
+	UserID string
 }
 
 // type alias
@@ -362,15 +394,15 @@ You can define:
 ```Go
 var m struct {
 	CreateReview struct {
-		Stars      graphql.Int
-		Commentary graphql.String
+		Stars      int
+		Commentary string
 	} `graphql:"createReview(episode: $ep, review: $review)"`
 }
 variables := map[string]interface{}{
 	"ep": starwars.Episode("JEDI"),
 	"review": starwars.ReviewInput{
-		Stars:      graphql.Int(5),
-		Commentary: graphql.String("This is a great movie!"),
+		Stars:      5,
+		Commentary: "This is a great movie!",
 	},
 }
 ```
@@ -416,8 +448,8 @@ var m struct {
 variables := map[string]interface{}{
 	"ep": starwars.Episode("JEDI"),
 	"review": starwars.ReviewInput{
-		Stars:      graphql.Int(5),
-		Commentary: graphql.String("This is a great movie!"),
+		Stars:      5,
+		Commentary: "This is a great movie!",
 	},
 }
 ```
@@ -433,28 +465,6 @@ fmt.Printf("Created a review: %s.\n", m.CreateReview)
 
 // Output:
 // Created a review: .
-```
-
-### Execute
-
-The `Exec` function allows you to executing pre-built queries. While using reflection to build queries is convenient as you get some resemblance of type safety, it gets very cumbersome when you need to create queries semi-dynamically. For instance, imagine you are building a CLI tool to query data from a graphql endpoint and you want users to be able to narrow down the query by passing cli flags or something.
-
-```Go
-// filters would be built dynamically somehow from the command line flags
-filters := []string{
-   `fieldA: {subfieldA: {_eq: "a"}}`,
-   `fieldB: {_eq: "b"}`,
-   ...
-}
-
-query := "query{something(where: {" + strings.Join(filters, ", ") + "}){id}}"
-res := struct {
-	Somethings []Something
-}{}
-
-if err := client.Exec(ctx, query, &res, map[string]any{}); err != nil {
-	panic(err)
-}
 ```
 
 ### Subscription
@@ -492,7 +502,7 @@ You can define this variable:
 ```Go
 var subscription struct {
 	Me struct {
-		Name graphql.String
+		Name string
 	}
 }
 ```
@@ -500,25 +510,43 @@ var subscription struct {
 Then call `client.Subscribe`, passing a pointer to it:
 
 ```Go
-subscriptionId, err := client.Subscribe(&query, nil, func(dataValue *json.RawMessage, errValue error) error {
+subscriptionId, err := client.Subscribe(&query, nil, func(dataValue []byte, errValue error) error {
 	if errValue != nil {
 		// handle error
 		// if returns error, it will failback to `onError` event
 		return nil
 	}
 	data := query{}
-	err := json.Unmarshal(dataValue, &data)
+	// use the github.com/hasura/go-graphql-client/pkg/jsonutil package
+	err := jsonutil.UnmarshalGraphQL(dataValue, &data)
 
 	fmt.Println(query.Me.Name)
 
 	// Output: Luke Skywalker
+	return nil
+})
+
+if err != nil {
+	// Handle error.
+}
+```
+
+#### Stop the subscription
+
+You can programmatically stop the subscription while the client is running by using the `Unsubscribe` method, or returning a special error to stop it in the callback.
+
+```Go
+subscriptionId, err := client.Subscribe(&query, nil, func(dataValue []byte, errValue error) error {
+	// ...
+	// return this error to stop the subscription in the callback
+	return graphql.ErrSubscriptionStopped
 })
 
 if err != nil {
 	// Handle error.
 }
 
-// you can unsubscribe the subscription while the client is running
+// unsubscribe the subscription while the client is running with the subscription ID
 client.Unsubscribe(subscriptionId)
 ```
 
@@ -532,9 +560,17 @@ client := graphql.NewSubscriptionClient("wss://example.com/graphql").
 		"headers": map[string]string{
 				"authentication": "...",
 		},
+	}).
+	// or lazy parameters with function 
+  WithConnectionParamsFn(func () map[string]interface{} {
+		return map[string]interface{} {
+			"headers": map[string]string{
+  				"authentication": "...",
+  		},
+		}
 	})
-
 ```
+
 
 #### Options
 
@@ -549,8 +585,35 @@ client.
 	// max size of response message
 	WithReadLimit(10*1024*1024).
 	// these operation event logs won't be printed
-	WithoutLogTypes(graphql.GQL_DATA, graphql.GQL_CONNECTION_KEEP_ALIVE)
+	WithoutLogTypes(graphql.GQLData, graphql.GQLConnectionKeepAlive)
+```
 
+#### Subscription Protocols
+
+The subscription client supports 2 protocols:
+- [subscriptions-transport-ws](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md) (default)
+- [graphql-ws](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md)
+
+The protocol can be switchable by the `WithProtocol` function.
+
+```Go
+client.WithProtocol(graphql.GraphQLWS)
+```
+
+#### Handle connection error
+
+GraphQL servers can define custom WebSocket error codes in the 3000-4999 range. For example, in the `graphql-ws` protocol, the server sends the invalid message error with status [4400](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md#invalid-message). In this case, the subscription client should let the user handle the error through the `OnError` event.
+
+```go
+client := graphql.NewSubscriptionClient(serverEndpoint).
+  OnError(func(sc *graphql.SubscriptionClient, err error) error {
+  	if strings.Contains(err.Error(), "invalid x-hasura-admin-secret/x-hasura-access-key") {
+			// exit the subscription client due to unauthorized error
+  		return err
+  	}
+		// otherwise ignore the error and the client continues to run
+  	return nil
+  })
 ```
 
 #### Events
@@ -559,10 +622,10 @@ client.
 // OnConnected event is triggered when the websocket connected to GraphQL server sucessfully
 client.OnConnected(fn func())
 
-// OnDisconnected event is triggered when the websocket server was stil down after retry timeout
+// OnDisconnected event is triggered when the websocket client was disconnected
 client.OnDisconnected(fn func())
 
-// OnConnected event is triggered when there is any connection error. This is bottom exception handler level
+// OnError event is triggered when there is any connection error. This is bottom exception handler level
 // If this function is empty, or returns nil, the error is ignored
 // If returns error, the websocket connection will be terminated
 client.OnError(onError func(sc *SubscriptionClient, err error) error)
@@ -682,6 +745,56 @@ func (cd cachedDirective) String() string {
 client.Query(ctx, &q, variables, graphql.OperationName("MyQuery"), cachedDirective{})
 ```
 
+### Execute pre-built query
+
+The `Exec` function allows you to executing pre-built queries. While using reflection to build queries is convenient as you get some resemblance of type safety, it gets very cumbersome when you need to create queries semi-dynamically. For instance, imagine you are building a CLI tool to query data from a graphql endpoint and you want users to be able to narrow down the query by passing cli flags or something.
+
+```Go
+// filters would be built dynamically somehow from the command line flags
+filters := []string{
+   `fieldA: {subfieldA: {_eq: "a"}}`,
+   `fieldB: {_eq: "b"}`,
+   ...
+}
+
+query := "query{something(where: {" + strings.Join(filters, ", ") + "}){id}}"
+res := struct {
+	Somethings []Something
+}{}
+
+if err := client.Exec(ctx, query, &res, map[string]any{}); err != nil {
+	panic(err)
+}
+
+subscription := "subscription{something(where: {" + strings.Join(filters, ", ") + "}){id}}"
+subscriptionId, err := subscriptionClient.Exec(subscription, nil, func(dataValue []byte, errValue error) error {
+	if errValue != nil {
+		// handle error
+		// if returns error, it will failback to `onError` event
+		return nil
+	}
+	data := query{}
+	err := json.Unmarshal(dataValue, &data)
+	// ...
+})
+```
+
+If you prefer decoding JSON yourself, use `ExecRaw` instead.
+
+```Go
+query := `query{something(where: { foo: { _eq: "bar" }}){id}}`
+var res struct {
+	Somethings []Something `json:"something"`
+}
+
+raw, err := client.ExecRaw(ctx, query, map[string]any{}) 
+if err != nil {
+	panic(err)
+}
+
+err = json.Unmarshal(raw, &res)
+```
+
 ### With operation name (deprecated)
 
 Operation name is still on API decision plan https://github.com/shurcooL/graphql/issues/12. However, in my opinion separate methods are easier choice to avoid breaking changes
@@ -691,7 +804,7 @@ func (c *Client) NamedQuery(ctx context.Context, name string, q interface{}, var
 
 func (c *Client) NamedMutate(ctx context.Context, name string, q interface{}, variables map[string]interface{}) error
 
-func (sc *SubscriptionClient) NamedSubscribe(name string, v interface{}, variables map[string]interface{}, handler func(message *json.RawMessage, err error) error) (string, error)
+func (sc *SubscriptionClient) NamedSubscribe(name string, v interface{}, variables map[string]interface{}, handler func(message []byte, err error) error) (string, error)
 ```
 
 ### Raw bytes response
@@ -699,13 +812,13 @@ func (sc *SubscriptionClient) NamedSubscribe(name string, v interface{}, variabl
 In the case we developers want to decode JSON response ourself. Moreover, the default `UnmarshalGraphQL` function isn't ideal with complicated nested interfaces
 
 ```Go
-func (c *Client) QueryRaw(ctx context.Context, q interface{}, variables map[string]interface{}) (*json.RawMessage, error)
+func (c *Client) QueryRaw(ctx context.Context, q interface{}, variables map[string]interface{}) ([]byte, error)
 
-func (c *Client) MutateRaw(ctx context.Context, q interface{}, variables map[string]interface{}) (*json.RawMessage, error)
+func (c *Client) MutateRaw(ctx context.Context, q interface{}, variables map[string]interface{}) ([]byte, error)
 
-func (c *Client) NamedQueryRaw(ctx context.Context, name string, q interface{}, variables map[string]interface{}) (*json.RawMessage, error)
+func (c *Client) NamedQueryRaw(ctx context.Context, name string, q interface{}, variables map[string]interface{}) ([]byte, error)
 
-func (c *Client) NamedMutateRaw(ctx context.Context, name string, q interface{}, variables map[string]interface{}) (*json.RawMessage, error)
+func (c *Client) NamedMutateRaw(ctx context.Context, name string, q interface{}, variables map[string]interface{}) ([]byte, error)
 ```
 
 ### Multiple mutations with ordered map
@@ -732,7 +845,7 @@ You can define:
 
 ```Go
 type CreateUser struct {
-	Login graphql.String
+	Login string
 }
 m := [][2]interface{}{
 	{"createUser(login: $login1)", &CreateUser{}},
@@ -740,9 +853,9 @@ m := [][2]interface{}{
 	{"createUser(login: $login3)", &CreateUser{}},
 }
 variables := map[string]interface{}{
-	"login1": graphql.String("grihabor"),
-	"login2": graphql.String("diman"),
-	"login3": graphql.String("indigo"),
+	"login1": "grihabor",
+	"login2": "diman",
+	"login3": "indigo",
 }
 ```
 
